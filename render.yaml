@@ -1,0 +1,85 @@
+# Render Blueprint - thay cho các lệnh `heroku create` / `heroku config:set` / `heroku addons:create`
+# Render đọc file này từ gốc repo GitHub và tạo toàn bộ hệ thống.
+# Nếu tên service bị trùng, Render sẽ thêm hậu tố vào URL -> sửa lại các biến *_SERVICE_URL bên dưới.
+
+databases:
+  - name: mslab11-1ic2-user-db
+    plan: free            # Postgres free: hết hạn sau 30 ngày (đủ cho bài lab)
+    region: singapore
+    databaseName: userdb
+    user: userdb_user
+
+services:
+  - type: web
+    name: mslab11-1ic2-user-service
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: lab11/user-service
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mslab11-1ic2-user-db
+          property: connectionString
+
+  - type: web
+    name: mslab11-1ic2-product-service
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: lab11/product-service
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: mslab11-1ic2-order-service
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: lab11/order-service
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: USER_SERVICE_URL
+        value: https://mslab11-1ic2-user-service.onrender.com
+      - key: PRODUCT_SERVICE_URL
+        value: https://mslab11-1ic2-product-service.onrender.com
+
+  - type: web
+    name: mslab11-1ic2-api-gateway
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: lab11/api-gateway
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: RATE_LIMIT
+        value: "1000"
+      - key: USER_SERVICE_URL
+        value: https://mslab11-1ic2-user-service.onrender.com
+      - key: PRODUCT_SERVICE_URL
+        value: https://mslab11-1ic2-product-service.onrender.com
+      - key: ORDER_SERVICE_URL
+        value: https://mslab11-1ic2-order-service.onrender.com

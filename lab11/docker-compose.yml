@@ -1,0 +1,41 @@
+# Chạy thử toàn bộ hệ thống trên máy trước khi deploy: docker compose up
+# Gateway: http://localhost:3000
+x-node: &node
+  image: node:20-alpine
+  working_dir: /app
+  command: sh -c "npm install --no-audit --no-fund && node server.js"
+
+services:
+  user-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_PASSWORD: postgres
+
+  user-service:
+    <<: *node
+    volumes: ["./user-service:/app"]
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@user-db:5432/userdb
+    depends_on: [user-db]
+
+  product-service:
+    <<: *node
+    volumes: ["./product-service:/app"]
+
+  order-service:
+    <<: *node
+    volumes: ["./order-service:/app"]
+    environment:
+      USER_SERVICE_URL: http://user-service:3001
+      PRODUCT_SERVICE_URL: http://product-service:3002
+
+  api-gateway:
+    <<: *node
+    volumes: ["./api-gateway:/app"]
+    ports: ["3000:3000"]
+    environment:
+      USER_SERVICE_URL: http://user-service:3001
+      PRODUCT_SERVICE_URL: http://product-service:3002
+      ORDER_SERVICE_URL: http://order-service:3003
+    depends_on: [user-service, product-service, order-service]

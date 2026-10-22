@@ -1,0 +1,45 @@
+# Thay cho workflow heroku-deploy của lab.
+# - Job "check": cài dependencies và kiểm tra cú pháp cả 4 service ở mỗi lần push / PR.
+# - Render tự deploy khi có push lên main (Auto-Deploy). Nếu muốn chỉ deploy khi CI xanh:
+#   tắt Auto-Deploy trên Render, rồi thêm secret RENDER_DEPLOY_HOOKS (các deploy hook URL, cách nhau bởi dấu cách).
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, product-service, order-service, api-gateway]
+    defaults:
+      run:
+        working-directory: lab11/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: node --check server.js
+      - run: npm test
+
+  deploy:
+    needs: check
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      RENDER_DEPLOY_HOOKS: ${{ secrets.RENDER_DEPLOY_HOOKS }}
+    steps:
+      - name: Trigger Render deploy hooks
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOKS" ]; then
+            echo "Chưa có secret RENDER_DEPLOY_HOOKS - dùng Auto-Deploy của Render."
+            exit 0
+          fi
+          for hook in $RENDER_DEPLOY_HOOKS; do
+            curl -fsS -X POST "$hook" > /dev/null && echo "Triggered a deploy hook"
+          done
